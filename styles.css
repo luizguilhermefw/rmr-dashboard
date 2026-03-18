@@ -1,0 +1,678 @@
+/* =========================================
+   Design System & Variables
+   ========================================= */
+:root {
+    /* Palette Linx */
+    --accent: #F0462D;
+    /* Laranja Linx */
+    --accent-hover: #D93B24;
+    --primary: #411E5A;
+    /* Roxo Linx */
+    --primary-light: #5D00A5;
+    /* Violeta Linx */
+
+    --bg-dark: #1E0D2A;
+    /* Tom escuro e uniforme de Roxo Linx */
+
+    --text-main: #FFFFFF;
+    --text-muted: #A0A0B0;
+
+    --glass-bg: rgba(255, 255, 255, 0.03);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+
+    /* Mapeamento de Cores Legadas para Cores Linx (Para não quebrar classes existentes) */
+    --blue: #5D00A5;
+    /* Map to Violeta Linx */
+    --green: #FFB200;
+    /* Map to Amarelo Linx */
+    --orange: #F0462D;
+    /* Map to Laranja Linx */
+    --purple: #411E5A;
+    /* Map to Roxo Linx */
+    --red: #F0462D;
+    /* Map to Laranja Linx */
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Outfit', sans-serif;
+}
+
+body {
+    background: var(--bg-dark);
+    color: var(--text-main);
+    overflow: hidden;
+    /* No scroll, presentation mode */
+    height: 100vh;
+}
+
+/* =========================================
+   Presentation Layout
+   ========================================= */
+.presentation-container {
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+    overflow: hidden;
+}
+
+.slide {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translateY(20px);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    background: var(--bg-dark);
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.slide.active {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+/* Nav Controls */
+.nav-controls {
+    position: fixed;
+    bottom: 30px;
+    right: 40px;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--glass-bg);
+    padding: 10px 20px;
+    border-radius: 50px;
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+}
+
+.btn-icon {
+    background: transparent;
+    border: none;
+    color: var(--text-main);
+    font-size: 18px;
+    cursor: pointer;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.3s;
+}
+
+.btn-icon:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.slide-counter {
+    font-weight: 500;
+    font-size: 14px;
+    letter-spacing: 2px;
+}
+
+/* =========================================
+   Common Components
+   ========================================= */
+.glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    box-shadow: var(--glass-shadow);
+}
+
+.btn {
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: 0.3s;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 16px;
+}
+
+.btn-large {
+    padding: 16px 32px;
+    font-size: 18px;
+    border-radius: 50px;
+}
+
+.btn-primary {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-main);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn-primary:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.btn-accent {
+    background: var(--accent);
+    color: white;
+    box-shadow: 0 4px 15px rgba(255, 90, 95, 0.4);
+}
+
+.btn-accent:hover {
+    background: var(--accent-hover);
+    transform: scale(1.02);
+}
+
+/* =========================================
+   Slide 1: Capa
+   ========================================= */
+.cover-layout {
+    width: 100%;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    padding: 60px 20px;
+}
+
+.cover-content {
+    z-index: 10;
+    max-width: 800px;
+}
+
+.editable-title {
+    font-size: 80px;
+    font-weight: 700;
+    background: linear-gradient(to right, #fff, #a5b4fc);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 12px;
+    outline: none;
+    border-bottom: 2px dashed transparent;
+    transition: border-color 0.3s;
+}
+
+.editable-title:focus {
+    border-bottom: 2px dashed var(--text-muted);
+}
+
+.editable-subtitle {
+    font-size: 32px;
+    font-weight: 300;
+    color: var(--text-muted);
+    margin-bottom: 64px;
+}
+
+.filter-box {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    padding: 32px 64px;
+    border-radius: 24px;
+    margin-bottom: 48px;
+    display: inline-block;
+}
+
+.filter-label {
+    margin-bottom: 20px;
+    font-size: 20px;
+    color: var(--text-muted);
+}
+
+.date-inputs {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    justify-content: center;
+}
+
+.date-input {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 16px 24px;
+    border-radius: 8px;
+    font-size: 20px;
+    outline: none;
+    min-width: 380px;
+    text-align: center;
+    cursor: pointer;
+}
+
+.date-separator {
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.filter-hint {
+    font-size: 12px;
+    margin-top: 12px;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.upload-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.upload-status {
+    color: var(--green);
+    font-weight: 500;
+}
+
+/* =========================================
+   Slide 2 & 3: Content Structure
+   ========================================= */
+.slide-inner {
+    width: 90%;
+    max-width: 1400px;
+    height: 90%;
+    display: flex;
+    flex-direction: column;
+}
+
+.powerbi-layout {
+    width: 100%;
+    max-width: 1400px;
+    min-height: 100vh;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    padding: 60px 40px;
+    justify-content: center;
+}
+
+.slide-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 40px;
+}
+
+.slide-header h2 {
+    font-size: 36px;
+    font-weight: 600;
+}
+
+.period-badge {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 8px 16px;
+    border-radius: 50px;
+    font-size: 14px;
+    border: 1px solid var(--glass-border);
+}
+
+.content-grid-overview {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    flex: 1;
+}
+
+/* KPIs */
+.kpi-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 20px;
+}
+
+.kpi-card {
+    padding: 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    transition: 0.3s;
+}
+
+.kpi-card:hover {
+    transform: translateY(-5px);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.kpi-card.highlight {
+    background: linear-gradient(135deg, rgba(255, 90, 95, 0.1) 0%, rgba(255, 90, 95, 0) 100%);
+    border-color: rgba(255, 90, 95, 0.3);
+}
+
+.kpi-icon {
+    font-size: 28px;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.kpi-icon.blue {
+    color: var(--blue);
+}
+
+.kpi-icon.orange {
+    color: var(--orange);
+}
+
+.kpi-icon.green {
+    color: var(--green);
+}
+
+.kpi-icon.purple {
+    color: var(--purple);
+}
+
+.kpi-icon.red {
+    color: var(--accent);
+}
+
+.kpi-info h3 {
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.kpi-info .value {
+    font-size: 32px;
+    font-weight: 700;
+}
+
+.kpi-info .trend {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+/* Charts */
+.charts-row {
+    display: flex;
+    gap: 30px;
+    flex: 1;
+    min-height: 0;
+}
+
+.chart-box {
+    flex: 1;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+}
+
+.chart-box.flex-2 {
+    flex: 2;
+}
+
+.chart-box h3 {
+    font-size: 18px;
+    font-weight: 500;
+    margin-bottom: 20px;
+}
+
+.gauge-wrapper {
+    position: relative;
+    flex: 1;
+    display: flex;
+    justify-content: center;
+}
+
+.gauge-center {
+    position: absolute;
+    bottom: 20%;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+}
+
+.gauge-center #sla-value {
+    font-size: 42px;
+    font-weight: 700;
+    color: var(--green);
+}
+
+.gauge-center span:last-child {
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+.chart-note {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 10px;
+}
+
+.bar-chart-wrapper {
+    flex: 1;
+    position: relative;
+}
+
+/* =========================================
+   Slide 3: Comparativo
+   ========================================= */
+.comparative-container {
+    display: flex;
+    gap: 30px;
+    flex: 1;
+    overflow-x: auto;
+    padding-bottom: 20px;
+}
+
+.comp-month-card {
+    min-width: 300px;
+    flex: 1;
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.comp-header {
+    text-align: center;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--glass-border);
+}
+
+.comp-header h3 {
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.comp-metrics {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.comp-metric {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 16px 20px;
+    border-radius: 12px;
+}
+
+.comp-metric .label {
+    color: var(--text-muted);
+    font-size: 15px;
+}
+
+.comp-metric .value {
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.comp-metric.highlight {
+    background: rgba(255, 90, 95, 0.1);
+    border: 1px solid rgba(255, 90, 95, 0.2);
+}
+
+.comp-metric.highlight .value {
+    color: var(--accent);
+}
+
+.empty-state {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+}
+
+.empty-state i {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+/* ========================================================
+   CLEAN LAYOUT (SLIDE 2) - TRANSPARENT WHITE ON DARK
+   ======================================================== */
+.powerbi-layout {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    padding-top: 40px;
+}
+
+.clean-header {
+    text-align: center;
+    margin-bottom: 50px;
+    width: 100%;
+}
+
+.title-clean {
+    font-size: 56px;
+    font-weight: 300;
+    color: var(--text-muted);
+}
+
+.pb-grid {
+    width: 100%;
+    max-width: 1200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 40px;
+}
+
+.kpi-row-clean {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    width: 100%;
+}
+
+.kpi-card-clean {
+    background: rgba(255, 255, 255, 0.05);
+    /* Branco levemente transparente */
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    padding: 24px 20px;
+    min-width: 180px;
+    flex: 1;
+    text-align: center;
+    box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.kpi-card-clean h3 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+}
+
+.kpi-card-clean .value {
+    font-size: 64px;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.charts-row-clean {
+    width: 100%;
+    max-width: 980px;
+    /* same width as 5 cards approx */
+}
+
+.chart-box-clean {
+    background: rgba(255, 255, 255, 0.05);
+    /* Branco levemente transparente */
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.2);
+    position: relative;
+}
+
+.chart-box-clean h3 {
+    font-size: 24px;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 20px;
+    position: relative;
+}
+
+.gauge-wrapper-large {
+    width: 100%;
+    height: 350px;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 20px;
+}
+
+.logo-bottom-right {
+    position: absolute;
+    bottom: -60px;
+    right: 20px;
+    color: #ffffff;
+}
+
+/* Custom Scroll for Tables */
+.custom-scroll::-webkit-scrollbar {
+    width: 6px;
+}
+
+.custom-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.custom-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+}
+
+.custom-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.4);
+}

@@ -47,6 +47,66 @@ function getMasterClientName(rawName) {
     return rawName;
 }
 
+// ======= STATE PERSISTENCE (AUTO-RELOAD PARA DESENVOLVIMENTO) =======
+function saveStateToSession() {
+    try {
+        sessionStorage.setItem('rmr_rawDataStore', JSON.stringify(rawDataStore));
+        sessionStorage.setItem('rmr_dateRange', document.getElementById('date-range').value);
+        sessionStorage.setItem('rmr_selectedClient', document.getElementById('client-select').value);
+    } catch (e) {
+        console.warn("Não foi possível salvar os dados na sessão (planilha pode ser muito grande).", e);
+    }
+}
+
+function loadStateFromSession() {
+    try {
+        const storedData = sessionStorage.getItem('rmr_rawDataStore');
+        if (storedData) {
+            rawDataStore = JSON.parse(storedData);
+
+            // Re-popula os clientes no dropdown
+            const cols = Object.keys(rawDataStore[0]);
+            const colNomeConta = cols.find(c => c.toLowerCase().includes('nome da conta') || c.toLowerCase().includes('cnpj')) || cols[0];
+            let foundClients = new Set();
+            rawDataStore.forEach(row => {
+                if (row._masterClientName && row._masterClientName !== "Desconhecido") {
+                    foundClients.add(row._masterClientName);
+                }
+            });
+
+            const clientSelect = document.getElementById('client-select');
+            clientSelect.innerHTML = '<option value="TODOS">Todos os Clientes (Visão Global)</option>';
+            Array.from(foundClients).sort().forEach(c => {
+                clientSelect.innerHTML += `<option value="${c}">${c}</option>`;
+            });
+
+            document.getElementById('client-select-container').style.display = 'block';
+            document.getElementById('btn-start').style.display = 'inline-flex';
+            document.getElementById('upload-status').innerHTML = '<i class="fa-solid fa-clock-rotate-left"></i> Restauração de sessão ativa (' + rawDataStore.length + ' linhas).';
+
+            const storedDate = sessionStorage.getItem('rmr_dateRange');
+            if (storedDate) {
+                const fp = document.getElementById('date-range')._flatpickr;
+                if (fp) fp.setDate(storedDate.split(" até "));
+            }
+
+            const storedClient = sessionStorage.getItem('rmr_selectedClient');
+            if (storedClient) clientSelect.value = storedClient;
+
+            const storedSlide = sessionStorage.getItem('rmr_currentSlide');
+            // Se havia um painel em andamento, simula o clique no botão e pula para o slide
+            if (storedSlide && parseInt(storedSlide) > 0) {
+                setTimeout(() => {
+                    document.getElementById('btn-start').click(); 
+                    setTimeout(() => goToSlide(parseInt(storedSlide)), 50); 
+                }, 100);
+            }
+        }
+    } catch (e) {
+        console.warn("Não foi possível recuperar os dados da sessão.", e);
+    }
+}
+
 // ======= SETUP DATEPICKER =======
 document.addEventListener('DOMContentLoaded', () => {
     flatpickr("#date-range", {
@@ -56,12 +116,15 @@ document.addEventListener('DOMContentLoaded', () => {
         altInput: true,
         altFormat: "j M, Y"
     });
+    
+    loadStateFromSession();
 });
 
 // ======= NAVIGATION SCRIPT =======
 document.getElementById('btn-start').addEventListener('click', () => {
     try {
         if (rawDataStore.length > 0) {
+            saveStateToSession();
             document.getElementById('nav-controls').style.display = 'flex';
             processAndRenderDashboard();
             goToSlide(1);
@@ -104,7 +167,8 @@ function updateSlideUI() {
         }
     });
     // Set text out of 6
-    document.getElementById('slide-counter').textContent = `${currentSlide + 1} / 6`;
+    document.getElementById('slide-counter').textContent = `${currentSlide + 1} / 7`;
+    sessionStorage.setItem('rmr_currentSlide', currentSlide);
 }
 
 // ======= DATA UPLOAD SCRIPT =======
@@ -282,6 +346,7 @@ function processAndRenderDashboard() {
     const colIdade = cols.find(c => cleanHeader(c).includes('idade')) || null;
     const colTipo = cols.find(c => cleanHeader(c).includes('tipo')) || null;
     const colAssunto = cols.find(c => cleanHeader(c).includes('assunto')) || null;
+    const colRede = cols.find(c => cleanHeader(c).includes('rede')) || null;
 
     // Novas Colunas de Data (Abertura, Fechamento e SLA)
     const colFechamento = cols.find(c => cleanHeader(c).includes('fechamento'));
@@ -303,6 +368,7 @@ function processAndRenderDashboard() {
     let typesCount = {};
 
     let monthlyData = {}; // Para página 3: Comparativo Mensal
+    let accountDetailsMap = {}; // Para página 3: Mapeamento de Rede e Apelido
 
     // 🔹 BASE FILTRADA (Página 2, 4 e 5)
     let dataFiltrada = rawDataStore.filter(row => {
@@ -344,8 +410,6 @@ function processAndRenderDashboard() {
         }
 
         const conta = row[colNomeConta];
-        const colCnpjFixo = cols.find(c => c.toLowerCase().includes('cnpj fixo'));
-        const colRede = cols.find(c => c.toLowerCase().includes('rede'));
         const identificadorConta = (colCnpj && row[colCnpj]) ? row[colCnpj] : conta;
         if (identificadorConta) contasUnicas.add(identificadorConta);
 
@@ -432,6 +496,13 @@ function processAndRenderDashboard() {
             if (identificadorConta) {
                 monthlyData[monthKey].contas.add(identificadorConta);
                 monthlyData[monthKey].contasMap[identificadorConta] = (monthlyData[monthKey].contasMap[identificadorConta] || 0) + 1;
+
+                if (!accountDetailsMap[identificadorConta]) {
+                    accountDetailsMap[identificadorConta] = {
+                        rede: (colRede && row[colRede]) ? row[colRede] : (row._masterClientName !== 'Desconhecido' ? row._masterClientName : '-'),
+                        apelido: conta
+                    };
+                }
             }
         }
     });
@@ -460,10 +531,10 @@ function processAndRenderDashboard() {
     document.getElementById('sla-value').textContent = `${percSLA}%`;
 
     renderGauge(percSLA, pbColor);
-    renderComparative(monthlyData);
+    renderComparative(monthlyData, accountDetailsMap);
 
     // Extrai dados e renderiza a Página 4: Volumetria Geral
-    renderVolumetria(dataFiltrada, colNomeConta, colTipo, colIdade, colCnpj);
+    renderVolumetria(dataFiltrada, colNomeConta, colTipo, colIdade, colCnpj, colRede);
     renderAssuntos(dataFiltrada, colTipo, colAssunto);
 
     // Se no futuro você quiser q atualizar o Dropdown recarregue a tela (só adicionar listener no select)
@@ -543,6 +614,7 @@ function renderGauge(perc, color) {
 
 // Globally store monthly data for drop-down re-renders
 let globalMonthlyData = {};
+let globalAccountDetailsMap = {};
 
 function formatMonth(yyyy_mm) {
     if (!yyyy_mm || yyyy_mm === 'Desconhecido') return yyyy_mm;
@@ -553,8 +625,9 @@ function formatMonth(yyyy_mm) {
     return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-function renderComparative(monthlyData) {
+function renderComparative(monthlyData, accountDetailsMap = {}) {
     globalMonthlyData = monthlyData;
+    globalAccountDetailsMap = accountDetailsMap;
     // Pega meses válidos, ordena de forma descrescente (mais recente primeiro)
     const months = Object.keys(monthlyData).filter(m => m !== 'Desconhecido').sort().reverse();
 
@@ -666,37 +739,39 @@ allKeys.forEach(nome => {
     const baseCount = dataBase.contasMap[nome] || 0;
     const compCount = dataComp.contasMap[nome] || 0;
 
-    const inBase = baseCount > 0 ? 1 : 0;
-    const inComp = compCount > 0 ? 1 : 0;
-
-    const diff = inBase - inComp;
-
-    totalTableDiff += diff;
-    totalTableCasos += baseCount;
+    const diffCasos = baseCount - compCount;
 
     cnpjArray.push({
         nome: nome,
-        diff: diff,
+        diff: diffCasos,
         casos: baseCount
     });
 });
 
-// 🔥 FILTRO PARA NÃO QUEBRAR TELA (somente mudanças)
-cnpjArray = cnpjArray.filter(item => item.diff !== 0);
+totalTableDiff = dataBase.casos - dataComp.casos;
+totalTableCasos = dataBase.casos;
+
+// Filtra para o ranking do Mês Base
+cnpjArray = cnpjArray.filter(item => item.casos > 0);
+
+// Sort by cases descending (Ranking Mês Base)
+cnpjArray.sort((a, b) => b.casos - a.casos);
 
 // 🔥 LIMITA PARA PERFORMANCE
 cnpjArray = cnpjArray.slice(0, 20);
-    // Sort by cases descending
-    cnpjArray.sort((a, b) => b.casos - a.casos);
 
     let html = '';
     cnpjArray.forEach(item => {
-        let diffColor = item.diff > 0 ? '#22c55e' : (item.diff < 0 ? '#ef4444' : 'var(--text-muted)');
+        // Se a diferença for positiva (aumentou chamados), usa vermelho/laranja. Se diminuiu, usa verde.
+        let diffColor = item.diff > 0 ? '#F0462D' : (item.diff < 0 ? '#22c55e' : 'var(--text-muted)');
         let diffText = item.diff > 0 ? '+' + item.diff : item.diff;
+
+        let detalhes = globalAccountDetailsMap[item.nome] || { rede: '-', apelido: item.nome };
 
         html += `
             <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-                <td style="padding: 12px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;" title="${item.nome}">${item.nome}</td>
+                <td style="padding: 12px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;" title="${detalhes.rede}">${detalhes.rede}</td>
+                <td style="padding: 12px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px;" title="${detalhes.apelido}">${detalhes.apelido}</td>
                 <td style="padding: 12px 8px; text-align: center; color: ${diffColor}; font-weight: bold;">${diffText}</td>
                 <td style="padding: 12px 8px; text-align: right;">${item.casos}</td>
             </tr>
@@ -704,21 +779,131 @@ cnpjArray = cnpjArray.slice(0, 20);
     });
 
     if (cnpjArray.length === 0) {
-        html = `<tr><td colspan="3" style="padding: 20px; text-align: center; color: var(--text-muted);">Nenhum CNPJ com chamado no Mês Base</td></tr>`;
+        html = `<tr><td colspan="4" style="padding: 20px; text-align: center; color: var(--text-muted);">Nenhum CNPJ com chamado no Mês Base</td></tr>`;
     }
 
     document.getElementById('cnpj-table-body').innerHTML = html;
 
-    let totalTableDiffColor = totalTableDiff > 0 ? '#F0462D' : (totalTableDiff < 0 ? '#FFB200' : 'white');
+    let totalTableDiffColor = totalTableDiff > 0 ? '#F0462D' : (totalTableDiff < 0 ? '#22c55e' : 'white');
     let totalTableDiffText = totalTableDiff > 0 ? '+' + totalTableDiff : totalTableDiff;
 
     document.getElementById('table-total-diff').textContent = totalTableDiffText;
     document.getElementById('table-total-diff').style.color = totalTableDiffColor;
     document.getElementById('table-total-casos').textContent = totalTableCasos;
+
+    // ================= NOVA LÓGICA (REDES) =================
+    let redeStats = {};
+
+    allKeys.forEach(cnpj => {
+        const baseCount = dataBase.contasMap[cnpj] || 0;
+        const compCount = dataComp.contasMap[cnpj] || 0;
+        const detalhes = globalAccountDetailsMap[cnpj] || { rede: '-', apelido: cnpj };
+        // Agrupa por Rede. Se a conta não tiver Rede mapeada, usa o Nome/Apelido como Rede.
+        const redeName = (detalhes.rede && detalhes.rede !== '-') ? detalhes.rede : detalhes.apelido;
+
+        if (!redeStats[redeName]) {
+            redeStats[redeName] = { base: 0, comp: 0 };
+        }
+        redeStats[redeName].base += baseCount;
+        redeStats[redeName].comp += compCount;
+    });
+
+    let redeArray = Object.keys(redeStats).map(k => {
+        return {
+            rede: k,
+            base: redeStats[k].base,
+            comp: redeStats[k].comp,
+            diff: redeStats[k].base - redeStats[k].comp
+        }
+    });
+
+    // Filtra quem não tem nenhum caso e ordena pelo Mês Base (Decrescente)
+    redeArray = redeArray.filter(item => item.base > 0 || item.comp > 0);
+    redeArray.sort((a, b) => b.base - a.base);
+
+    let redeHtml = '';
+    redeArray.forEach(item => {
+        let diffColor = item.diff > 0 ? '#F0462D' : (item.diff < 0 ? '#22c55e' : 'var(--text-muted)');
+        let diffText = item.diff > 0 ? '+' + item.diff : item.diff;
+
+        redeHtml += `
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
+                <td style="padding: 12px 8px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;" title="${item.rede}">${item.rede}</td>
+                <td style="padding: 12px 8px; text-align: center;">${item.comp}</td>
+                <td style="padding: 12px 8px; text-align: center;">${item.base}</td>
+                <td style="padding: 12px 8px; text-align: center; color: ${diffColor}; font-weight: bold;">${diffText}</td>
+            </tr>
+        `;
+    });
+
+    if (redeArray.length === 0) {
+        redeHtml = `<tr><td colspan="4" style="padding: 20px; text-align: center; color: var(--text-muted);">Nenhuma Rede com chamados no período</td></tr>`;
+    }
+    
+    let redeTableBody = document.getElementById('rede-table-body');
+    if(redeTableBody) redeTableBody.innerHTML = redeHtml;
+
+    // Chart de Redes Lado a Lado (Top 10)
+    let topRedes = redeArray.slice(0, 10);
+    const canvasRedes = document.getElementById('chartRedes');
+    if(canvasRedes) {
+        const ctxRedes = canvasRedes.getContext('2d');
+        if (charts.redes) charts.redes.destroy();
+        
+        const baseLabel = formatMonth(mBaseKey);
+        const compLabel = formatMonth(mCompKey);
+
+        charts.redes = new Chart(ctxRedes, {
+            type: 'bar',
+            data: {
+                labels: topRedes.map(r => r.rede),
+                datasets: [
+                    {
+                        label: compLabel + ' (M-1)',
+                        data: topRedes.map(r => r.comp),
+                        backgroundColor: 'rgba(255, 255, 255, 0.2)', // Branco Transparente (fundo)
+                        borderRadius: 4
+                    },
+                    {
+                        label: baseLabel + ' (Base)',
+                        data: topRedes.map(r => r.base),
+                        backgroundColor: '#F0462D', // Laranja Linx (destaque)
+                        borderRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        labels: { color: '#A0A0B0', font: { family: "'Outfit', sans-serif" } }
+                    },
+                    tooltip: {
+                        backgroundColor: '#411E5A',
+                        titleFont: { family: "'Outfit', sans-serif", size: 14 },
+                        bodyFont: { family: "'Outfit', sans-serif", size: 14 }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false, drawBorder: false },
+                        ticks: { color: '#A0A0B0', font: { family: "'Outfit', sans-serif" } }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(255, 255, 255, 0.05)', drawBorder: false },
+                        ticks: { color: '#A0A0B0', font: { family: "'Outfit', sans-serif" } }
+                    }
+                }
+            }
+        });
+    }
 }
 
 // ======= VOLUMETRIA GERAL (PAGE 4) =======
-function renderVolumetria(data, colNomeConta, colTipo, colIdade, colCnpj) {
+function renderVolumetria(data, colNomeConta, colTipo, colIdade, colCnpj, colRede) {
     let marcasMap = {};
     let tiposCount = { 'Dúvida': 0, 'Incidente': 0, 'Requisição': 0, 'Serviço': 0, 'Manutenção': 0, 'Outros': 0 };
 
@@ -731,7 +916,14 @@ function renderVolumetria(data, colNomeConta, colTipo, colIdade, colCnpj) {
         const marca = marcaRaw.toString().toUpperCase().trim();
 
         if (!marcasMap[marca]) {
-            marcasMap[marca] = { total: 0, abertos: 0, fechados: 0, cnpjs: new Set() };
+            marcasMap[marca] = { 
+                rede: (colRede && row[colRede]) ? row[colRede] : (row._masterClientName !== 'Desconhecido' ? row._masterClientName : '-'),
+                apelido: marcaRaw,
+                total: 0, 
+                abertos: 0, 
+                fechados: 0, 
+                cnpjs: new Set() 
+            };
         }
 
         let mObj = marcasMap[marca];
@@ -807,7 +999,7 @@ function renderVolumetria(data, colNomeConta, colTipo, colIdade, colCnpj) {
     let marcasArray = Object.keys(marcasMap).map(k => {
         let obj = marcasMap[k];
         let densidade = (obj.total / tempoFiltrado).toFixed(2);
-        return { nome: k, total: obj.total, abertos: obj.abertos, fechados: obj.fechados, densidade: densidade, rawCnpjs: obj.cnpjs.size };
+        return { nome: k, rede: obj.rede, apelido: obj.apelido, total: obj.total, abertos: obj.abertos, fechados: obj.fechados, densidade: densidade, rawCnpjs: obj.cnpjs.size };
     });
 
     marcasArray.sort((a, b) => b.total - a.total); // Sort by highest vol
@@ -818,7 +1010,8 @@ function renderVolumetria(data, colNomeConta, colTipo, colIdade, colCnpj) {
         gTot += m.total; gAb += m.abertos; gFe += m.fechados;
         tHtml += `
             <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
-                <td style="padding: 10px 5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px;" title="${m.nome}">${m.nome}</td>
+                <td style="padding: 10px 5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;" title="${m.rede}">${m.rede}</td>
+                <td style="padding: 10px 5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px;" title="${m.apelido}">${m.apelido}</td>
                 <td style="padding: 10px 5px; text-align: center;">${m.total}</td>
                 <td style="padding: 10px 5px; text-align: center; color: ${m.abertos > 0 ? '#F0462D' : 'inherit'};">${m.abertos}</td>
                 <td style="padding: 10px 5px; text-align: center;">${m.fechados}</td>
