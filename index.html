@@ -19,9 +19,9 @@
 
 <body>
 
-    <!-- Global Logos (Top Right Editable) -> Aparece em todos os slides -->
-    <div class="global-logos-top-right"
-        style="position: absolute; top: 40px; right: 40px; display: flex; align-items: center; gap: 16px; color: #fff; z-index: 1000;">
+    <!-- Global Logos (Bottom Left Editable) -> Aparece em todos os slides -->
+    <div class="global-logos-bottom-left"
+        style="position: absolute; bottom: 30px; left: 40px; display: flex; align-items: center; gap: 16px; color: #fff; z-index: 1000;">
         <!-- Placeholder/Preview Logo do Cliente -->
         <div id="client-logo-wrapper" style="display: flex; align-items: center; gap: 8px; cursor: pointer;"
             title="Clique para alterar a logo do cliente"
@@ -35,15 +35,13 @@
         <!-- Separator -->
         <div style="width: 2px; height: 28px; background: rgba(255,255,255,0.1);"></div>
 
-        <!-- Logo Linx Editável -->
-        <div id="linx-logo-wrapper" style="display: flex; align-items: center; gap: 8px; cursor: pointer;"
-            title="Clique para alterar a logo da Linx" onclick="document.getElementById('linx-logo-upload').click()">
-            <img src="" id="linx-logo-img" alt="Logo Linx" style="display: none; max-height: 28px;">
-            <span id="linx-logo-hint"
-                style="font-size: 26px; font-weight: 700; display: inline-flex; align-items: center; gap: 8px;">
-                Linx <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 2L22 12L12 22L2 12L12 2Z" fill="currentColor" />
-                </svg>
+        <!-- Logo Empresa Editável -->
+        <div id="empresa-logo-wrapper" style="display: flex; align-items: center; gap: 8px; cursor: pointer;"
+            title="Clique para alterar a logo da empresa" onclick="document.getElementById('empresa-logo-upload').click()">
+            <img src="" id="empresa-logo-img" alt="Logo Empresa" style="display: none; max-height: 28px;">
+            <span id="empresa-logo-hint"
+                style="color: #A0A0B0; font-size: 13px; border: 1px dashed rgba(255,255,255,0.2); border-radius: 4px; padding: 4px 8px;">
+                <i class="fa-solid fa-plus"></i> Logo Empresa
             </span>
         </div>
     </div>
@@ -62,15 +60,15 @@
         }
     ">
 
-    <!-- Hidden Input for Linx Logo Replace -->
-    <input type="file" id="linx-logo-upload" accept="image/*" style="display: none;" onchange="
+    <!-- Hidden Input for Empresa Logo Replace -->
+    <input type="file" id="empresa-logo-upload" accept="image/*" style="display: none;" onchange="
         var fileL = this.files[0];
         if (fileL) {
             var reader = new FileReader();
             reader.onload = function(e) {
-                document.getElementById('linx-logo-img').src = e.target.result;
-                document.getElementById('linx-logo-img').style.display = 'block';
-                document.getElementById('linx-logo-hint').style.display = 'none';
+                document.getElementById('empresa-logo-img').src = e.target.result;
+                document.getElementById('empresa-logo-img').style.display = 'block';
+                document.getElementById('empresa-logo-hint').style.display = 'none';
             }
             reader.readAsDataURL(fileL);
         }
@@ -302,7 +300,7 @@
                 </header>
 
                 <div class="comparative-container" style="display:flex; width: 100%; max-width: 1300px; gap: 40px; justify-content: space-between;">
-                    <div class="comp-left chart-box-clean" style="flex: 1; padding: 30px; display:flex; flex-direction:column; max-height: 500px;">
+                    <div class="comp-left chart-box-clean" style="flex: 1; padding: 30px; display:flex; flex-direction:column; height: 420px; min-height: 0;">
                         <h3 style="margin-bottom: 20px; font-size: 18px;">Variação Total</h3>
                         <div style="overflow-y: auto; text-align: left; color: white; padding-right: 10px;" class="custom-scroll">
                             <table style="width: 100%; border-collapse: collapse;">
@@ -320,11 +318,11 @@
                         </div>
                     </div>
 
-                    <div class="comp-right chart-box-clean" style="flex: 1; padding: 24px; display: flex; flex-direction: column; min-height: 500px;">
+                    <div class="comp-right chart-box-clean" style="flex: 1; padding: 24px; display: flex; flex-direction: column; height: 420px; min-height: 0;">
                         <h3 style="font-size: 16px; margin-bottom: 20px; flex-shrink: 0; color: var(--text-light); text-align: left;">
                             Evolução M-1 vs Base (Top 10 Redes)
                         </h3>
-                        <div style="position: relative; flex: 1; width: 100%;">
+                        <div style="position: relative; flex: 1; width: 100%; min-height: 0;">
                             <canvas id="chartRedes"></canvas>
                         </div>
                     </div>
