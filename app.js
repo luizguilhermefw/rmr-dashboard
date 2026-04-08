@@ -1193,8 +1193,10 @@ function renderAnalisePagina6(data, colModulo, colMotivo, colAssunto, colTipo) {
 
         const insightEl = document.getElementById('assunto-insight');
         if (insightEl) {
-            if (sortedAssuntos.length > 0) {
-                insightEl.textContent = `🔎 Principal dor: ${labelsAssunto[0]} (${dataAssunto[0]} casos)`;
+            if (labelsAssunto.length > 0) {
+                const topAssunto = labelsAssunto[0];
+                const topQtd = dataAssunto[0];
+                insightEl.innerHTML = `🔎 Principal dor: <b>${topAssunto}</b> (${topQtd} casos)`;
                 insightEl.style.display = 'block';
             } else {
                 insightEl.style.display = 'none';
