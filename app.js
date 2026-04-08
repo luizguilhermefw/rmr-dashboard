@@ -1191,6 +1191,16 @@ function renderAnalisePagina6(data, colModulo, colMotivo, colAssunto, colTipo) {
         let labelsAssunto = sortedAssuntos.map(i => i[0]);
         let dataAssunto = sortedAssuntos.map(i => i[1]);
 
+        const insightEl = document.getElementById('assunto-insight');
+        if (insightEl) {
+            if (sortedAssuntos.length > 0) {
+                insightEl.textContent = `🔎 Principal dor: ${labelsAssunto[0]} (${dataAssunto[0]} casos)`;
+                insightEl.style.display = 'block';
+            } else {
+                insightEl.style.display = 'none';
+            }
+        }
+
         const ctxAssuntos = document.getElementById('chartAssuntos').getContext('2d');
         if (charts.assuntos) charts.assuntos.destroy();
 
@@ -1201,14 +1211,20 @@ function renderAnalisePagina6(data, colModulo, colMotivo, colAssunto, colTipo) {
                 datasets: [{
                     label: 'Ocorrências',
                     data: dataAssunto,
-                    backgroundColor: chartColors.red, // Laranja Linx
-                    borderRadius: 4
+                    backgroundColor: dataAssunto.map((_, index) => index === 0 ? '#FF3B3B' : chartColors.red),
+                    borderRadius: 4,
+                    barPercentage: 0.9
                 }]
             },
             options: {
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
+                layout: {
+                    padding: {
+                        left: 10
+                    }
+                },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
@@ -1221,7 +1237,18 @@ function renderAnalisePagina6(data, colModulo, colMotivo, colAssunto, colTipo) {
                 },
                 scales: {
                     x: { grid: { color: chartColors.grid }, ticks: { color: chartColors.text, precision: 0 } },
-                    y: { grid: { display: false }, ticks: { color: chartColors.text, font: { size: 12 } } }
+                    y: {
+                        grid: { display: false },
+                        ticks: {
+                            color: chartColors.text,
+                            font: { size: 13, weight: 'bold' },
+                            autoSkip: false,
+                            callback: function (value) {
+                                let label = this.getLabelForValue(value) || '';
+                                return label.length > 35 ? label.substring(0, 35) + '...' : label;
+                            }
+                        }
+                    }
                 }
             }
         });
