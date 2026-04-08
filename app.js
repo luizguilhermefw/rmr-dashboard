@@ -346,7 +346,10 @@ function processAndRenderDashboard() {
     const colIdade = cols.find(c => cleanHeader(c).includes('idade')) || null;
     const colTipo = cols.find(c => cleanHeader(c).includes('tipo')) || null;
     const colAssunto = cols.find(c => cleanHeader(c).includes('assunto')) || null;
+    const colAssuntoEncerramento = cols.find(c => cleanHeader(c).includes('assuntoencerramento')) || null;
     const colRede = cols.find(c => cleanHeader(c).includes('rede')) || null;
+    const colModulo = cols.find(c => cleanHeader(c).includes('modulo'));
+    const colMotivo = cols.find(c => cleanHeader(c).includes('motivo'));
 
     // Novas Colunas de Data (Abertura, Fechamento e SLA)
     const colFechamento = cols.find(c => cleanHeader(c).includes('fechamento'));
@@ -535,7 +538,8 @@ function processAndRenderDashboard() {
 
     // Extrai dados e renderiza a Página 4: Volumetria Geral
     renderVolumetria(dataFiltrada, colNomeConta, colTipo, colIdade, colCnpj, colRede);
-    renderAssuntos(dataFiltrada, colTipo, colAssunto);
+    renderAnalisePagina6(dataFiltrada, colModulo, colMotivo, colAssunto, colTipo);
+    renderAnalisePagina6(dataFiltrada, colModulo, colMotivo, colAssuntoEncerramento || colAssunto, colTipo);
 
     // Se no futuro você quiser q atualizar o Dropdown recarregue a tela (só adicionar listener no select)
     const selectEl = document.getElementById('client-select');
@@ -1076,79 +1080,177 @@ function renderVolumetria(data, colNomeConta, colTipo, colIdade, colCnpj, colRed
 
 }
 
-// ======= ASSUNTOS (PAGE 5) =======
-function renderAssuntos(data, colTipo, colAssunto) {
-    if (!colAssunto || !colTipo) return;
+// ======= ANÁLISE DE CAUSA RAIZ (PÁGINA 6) =======
+function renderAnalisePagina6(data, colModulo, colMotivo, colAssunto, colTipo) {
 
-    let assuntosCount = {};
-
-    data.forEach(row => {
-        const rawTipo = (row[colTipo] || '').toString().toLowerCase().trim();
-        const rawAssunto = (row[colAssunto] || '').toString().trim();
-
-        // Filtra para analisar apenas os tipos principais de dor
-        if (rawTipo.includes('dúvida') || rawTipo.includes('duvida') || rawTipo.includes('incidente') || rawTipo.includes('incidentes')) {
-            if (rawAssunto) {
-                assuntosCount[rawAssunto] = (assuntosCount[rawAssunto] || 0) + 1;
+    // --- 1. Módulos ---
+    if (colModulo) {
+        let moduloCount = {};
+        data.forEach(row => {
+            const rawModulo = (row[colModulo] || '').toString().trim();
+            if (rawModulo) {
+                moduloCount[rawModulo] = (moduloCount[rawModulo] || 0) + 1;
             }
-        }
-    });
+        });
 
-    // Remove empty matters
-    for (let k in assuntosCount) { if (assuntosCount[k] === 0) delete assuntosCount[k]; }
+        let sortedModulos = Object.entries(moduloCount).sort((a, b) => b[1] - a[1]).slice(0, 10);
+        let labelsModulo = sortedModulos.map(i => i[0]);
+        let dataModulo = sortedModulos.map(i => i[1]);
 
-    // Ordenar do maior para menor
-    let sortedAssuntos = Object.entries(assuntosCount).sort((a, b) => b[1] - a[1]);
+        const ctxModulos = document.getElementById('chartModulos').getContext('2d');
+        if (charts.modulos) charts.modulos.destroy();
 
-    // Pega o Top 10 para não poluir visualmente (A barra de horizontal precisa focar nas maiores dores)
-    sortedAssuntos = sortedAssuntos.slice(0, 10);
+        charts.modulos = new Chart(ctxModulos, {
+            type: 'bar',
+            data: {
+                labels: labelsModulo,
+                datasets: [{
+                    label: 'Acionamentos',
+                    data: dataModulo,
+                    backgroundColor: chartColors.blue, // Violeta Linx
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { color: chartColors.grid }, ticks: { color: chartColors.text } },
+                    y: { grid: { display: false }, ticks: { color: chartColors.text, font: { size: 12 } } }
+                }
+            }
+        });
+    }
 
-    let labelsAssunto = sortedAssuntos.map(i => i[0]);
-    let dataAssunto = sortedAssuntos.map(i => i[1]);
+    // --- 2. Motivos ---
+    if (colMotivo) {
+        let motivoCount = {};
+        data.forEach(row => {
+            const rawMotivo = (row[colMotivo] || 'Não especificado').toString().trim();
+            if (rawMotivo) {
+                motivoCount[rawMotivo] = (motivoCount[rawMotivo] || 0) + 1;
+            }
+        });
 
-    const ctxAssuntos = document.getElementById('chartAssuntos').getContext('2d');
-    if (charts.assuntos) charts.assuntos.destroy();
+        let sortedMotivos = Object.entries(motivoCount).sort((a, b) => b[1] - a[1]);
+        let labelsMotivo = sortedMotivos.map(i => i[0]);
+        let dataMotivo = sortedMotivos.map(i => i[1]);
 
-    charts.assuntos = new Chart(ctxAssuntos, {
-        type: 'bar', // A Chart.js >= 3usa bar e a prop `indexAxis` para horizontal
-        data: {
-            labels: labelsAssunto,
-            datasets: [{
-                label: 'Ocorrências (Dúvidas/Incidentes)',
-                data: dataAssunto,
-                backgroundColor: chartColors.red, // Cor principal Laranja Linx
-                borderRadius: 4
-            }]
-        },
-        options: {
-            indexAxis: 'y', // Inverte para barras horizontais
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function (context) {
-                            return ` ${context.raw} chamados`;
+        const ctxMotivos = document.getElementById('chartMotivos').getContext('2d');
+        if (charts.motivos) charts.motivos.destroy();
+
+        charts.motivos = new Chart(ctxMotivos, {
+            type: 'doughnut',
+            data: {
+                labels: labelsMotivo,
+                datasets: [{
+                    label: 'Motivos',
+                    data: dataMotivo,
+                    backgroundColor: [chartColors.green, chartColors.orange, chartColors.blue, '#22c55e', '#8b5cf6', '#f43f5e'],
+                    borderWidth: 0,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            color: chartColors.text,
+                            padding: 15,
+                            font: { size: 12 }
                         }
                     }
                 }
+            }
+        });
+    }
+
+    // --- 3. Assuntos de Encerramento (Lógica existente) ---
+    if (colAssunto) {
+        let assuntosCount = {};
+        data.forEach(row => {
+            const rawAssunto = (row[colAssunto] || '').toString().trim();
+
+            // A lógica original filtrava por tipo. Vamos manter para consistência.
+            let isRelevantType = true;
+            if (colTipo) {
+                const rawTipo = (row[colTipo] || '').toString().toLowerCase().trim();
+                isRelevantType = rawTipo.includes('dúvida') || rawTipo.includes('duvida') || rawTipo.includes('incidente') || rawTipo.includes('incidentes');
+            }
+
+            if (isRelevantType && rawAssunto) {
+                assuntosCount[rawAssunto] = (assuntosCount[rawAssunto] || 0) + 1;
+            }
+        });
+
+        let sortedAssuntos = Object.entries(assuntosCount).sort((a, b) => b[1] - a[1]).slice(0, 10);
+        let labelsAssunto = sortedAssuntos.map(i => i[0]);
+        let dataAssunto = sortedAssuntos.map(i => i[1]);
+
+        const insightEl = document.getElementById('assunto-insight');
+        if (insightEl) {
+            if (sortedAssuntos.length > 0) {
+                insightEl.textContent = `🔎 Principal dor: ${labelsAssunto[0]} (${dataAssunto[0]} casos)`;
+                insightEl.style.display = 'block';
+            } else {
+                insightEl.style.display = 'none';
+            }
+        }
+
+        const ctxAssuntos = document.getElementById('chartAssuntos').getContext('2d');
+        if (charts.assuntos) charts.assuntos.destroy();
+
+        charts.assuntos = new Chart(ctxAssuntos, {
+            type: 'bar',
+            data: {
+                labels: labelsAssunto,
+                datasets: [{
+                    label: 'Ocorrências',
+                    data: dataAssunto,
+                    backgroundColor: dataAssunto.map((_, index) => index === 0 ? '#FF3B3B' : chartColors.red),
+                    borderRadius: 4,
+                    barPercentage: 0.9
+                }]
             },
-            scales: {
-                x: {
-                    grid: { color: chartColors.grid },
-                    ticks: { color: chartColors.text, stepSize: 1, precision: 0 }
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: {
+                    padding: {
+                        left: 10
+                    }
                 },
-                y: {
-                    grid: { display: false },
-                    ticks: {
-                        color: chartColors.text,
-                        font: { size: 12 }
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                return ` ${context.raw} chamados`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { grid: { color: chartColors.grid }, ticks: { color: chartColors.text, precision: 0 } },
+                    y: {
+                        grid: { display: false },
+                        ticks: {
+                            color: chartColors.text,
+                            font: { size: 13, weight: 'bold' },
+                            autoSkip: false,
+                            callback: function (value) {
+                                let label = this.getLabelForValue(value) || '';
+                                return label.length > 35 ? label.substring(0, 35) + '...' : label;
+                            }
+                        }
                     }
                 }
             }
-        }
-    });
+        });
+    }
 }
