@@ -420,17 +420,38 @@
             </header>
 
             <div class="assuntos-container"
-                style="display:flex; width: 100%; max-width: 1300px; gap: 40px; justify-content: center; align-items: stretch;">
-                <div class="chart-box-clean"
-                    style="flex: 1; padding: 24px; display: flex; flex-direction: column; min-height: 540px;">
-                    <h3
-                        style="font-size: 16px; margin-bottom: 20px; flex-shrink: 0; color: var(--text-light); text-align: left;">
-                        Ranking de Assuntos Mais Recorrentes
+                style="display:flex; width: 100%; max-width: 1400px; gap: 30px; justify-content: center; align-items: stretch;">
+
+                <!-- Coluna 1: Módulos -->
+                <div class="chart-box-clean" style="flex: 1; padding: 24px; display: flex; flex-direction: column;">
+                    <h3 style="font-size: 16px; margin-bottom: 20px; flex-shrink: 0; color: var(--text-light); text-align: left;">
+                        Módulos Mais Acionados (Top 10)
                     </h3>
-                    <div style="position: relative; flex: 1; width: 100%;">
+                    <div style="position: relative; flex: 1; width: 100%; min-height: 450px;">
+                        <canvas id="chartModulos"></canvas>
+                    </div>
+                </div>
+
+                <!-- Coluna 2: Motivos -->
+                <div class="chart-box-clean" style="flex: 0.8; padding: 24px; display: flex; flex-direction: column;">
+                    <h3 style="font-size: 16px; margin-bottom: 20px; flex-shrink: 0; color: var(--text-light); text-align: left;">
+                        Motivos de Abertura
+                    </h3>
+                    <div style="position: relative; flex: 1; width: 100%; min-height: 450px;">
+                        <canvas id="chartMotivos"></canvas>
+                    </div>
+                </div>
+
+                <!-- Coluna 3: Assuntos -->
+                <div class="chart-box-clean" style="flex: 1; padding: 24px; display: flex; flex-direction: column;">
+                    <h3 style="font-size: 16px; margin-bottom: 20px; flex-shrink: 0; color: var(--text-light); text-align: left;">
+                        Assuntos de Encerramento (Top 10)
+                    </h3>
+                    <div style="position: relative; flex: 1; width: 100%; min-height: 450px;">
                         <canvas id="chartAssuntos"></canvas>
                     </div>
                 </div>
+
             </div>
         </div>
     </section>
