@@ -167,7 +167,7 @@ function updateSlideUI() {
         }
     });
     // Set text out of 6
-    document.getElementById('slide-counter').textContent = `${currentSlide + 1} / 7`;
+    document.getElementById('slide-counter').textContent = `${currentSlide + 1} / 8`;
     sessionStorage.setItem('rmr_currentSlide', currentSlide);
 }
 
@@ -538,8 +538,8 @@ function processAndRenderDashboard() {
 
     // Extrai dados e renderiza a Página 4: Volumetria Geral
     renderVolumetria(dataFiltrada, colNomeConta, colTipo, colIdade, colCnpj, colRede);
-    renderAnalisePagina6(dataFiltrada, colModulo, colMotivo, colAssunto, colTipo);
     renderAnalisePagina6(dataFiltrada, colModulo, colMotivo, colAssuntoEncerramento || colAssunto, colTipo);
+    renderTopLojas(dataFiltrada, colNomeConta, colMotivo, colAssuntoEncerramento || colAssunto, colModulo);
 
     // Se no futuro você quiser q atualizar o Dropdown recarregue a tela (só adicionar listener no select)
     const selectEl = document.getElementById('client-select');
@@ -907,7 +907,7 @@ cnpjArray = cnpjArray.slice(0, 20);
 }
 
 // ======= VOLUMETRIA GERAL (PAGE 4) =======
-function renderVolumetria(data, colNomeConta, colTipo, colIdade, colCnpj, colRede) {
+function renderVolumetria(data, colNomeConta, colTipo, colIdade, colCnpj, colRede, tempoFiltradoParam) {
     let marcasMap = {};
     let tiposCount = { 'Dúvida': 0, 'Incidente': 0, 'Requisição': 0, 'Serviço': 0, 'Manutenção': 0, 'Outros': 0 };
 
@@ -984,21 +984,8 @@ function renderVolumetria(data, colNomeConta, colTipo, colIdade, colCnpj, colRed
     document.getElementById('vol-tms').textContent = tms.replace('.', ',');
 
     // --- Render Tabela de Marcas ---
-    // Calculate 'tempo filtrado' in days
-    // We will extract all valid dates found in the data to determine how many unique days of operation exist in the imported file
-    let uniqueDays = new Set();
-    data.forEach(row => {
-        // Look for values that resemble dates (e.g. DD/MM/YYYY)
-        let rowStr = Object.values(row).join(' ');
-        let match = rowStr.match(/\b(\d{1,2}\/\d{1,2}\/\d{4})\b/);
-        if (match) {
-            uniqueDays.add(match[1]);
-        }
-    });
-
-    // The total time span is the count of unique days observed
-    // This answers "qual a densidade de contato para uma loja que em 60 dias abriu 60 casos?" -> 1 case per day
-    let tempoFiltrado = uniqueDays.size > 0 ? uniqueDays.size : 1; // Default to 1 to avoid division by zero
+    // The total time span is the count of days filtered explicitly passed to avoid text-regex errors
+    let tempoFiltrado = tempoFiltradoParam || 1;
 
     let marcasArray = Object.keys(marcasMap).map(k => {
         let obj = marcasMap[k];
@@ -1191,18 +1178,6 @@ function renderAnalisePagina6(data, colModulo, colMotivo, colAssunto, colTipo) {
         let labelsAssunto = sortedAssuntos.map(i => i[0]);
         let dataAssunto = sortedAssuntos.map(i => i[1]);
 
-        const insightEl = document.getElementById('assunto-insight');
-        if (insightEl) {
-            if (labelsAssunto.length > 0) {
-                const topAssunto = labelsAssunto[0];
-                const topQtd = dataAssunto[0];
-                insightEl.innerHTML = `🔎 Principal dor: <b>${topAssunto}</b> (${topQtd} casos)`;
-                insightEl.style.display = 'block';
-            } else {
-                insightEl.style.display = 'none';
-            }
-        }
-
         const ctxAssuntos = document.getElementById('chartAssuntos').getContext('2d');
         if (charts.assuntos) charts.assuntos.destroy();
 
@@ -1213,20 +1188,14 @@ function renderAnalisePagina6(data, colModulo, colMotivo, colAssunto, colTipo) {
                 datasets: [{
                     label: 'Ocorrências',
                     data: dataAssunto,
-                    backgroundColor: dataAssunto.map((_, index) => index === 0 ? '#FF3B3B' : chartColors.red),
-                    borderRadius: 4,
-                    barPercentage: 0.9
+                    backgroundColor: chartColors.red, // Laranja Linx
+                    borderRadius: 4
                 }]
             },
             options: {
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
-                layout: {
-                    padding: {
-                        left: 10
-                    }
-                },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
@@ -1239,20 +1208,167 @@ function renderAnalisePagina6(data, colModulo, colMotivo, colAssunto, colTipo) {
                 },
                 scales: {
                     x: { grid: { color: chartColors.grid }, ticks: { color: chartColors.text, precision: 0 } },
-                    y: {
-                        grid: { display: false },
-                        ticks: {
-                            color: chartColors.text,
-                            font: { size: 13, weight: 'bold' },
-                            autoSkip: false,
-                            callback: function (value) {
-                                let label = this.getLabelForValue(value) || '';
-                                return label.length > 35 ? label.substring(0, 35) + '...' : label;
-                            }
-                        }
-                    }
+                    y: { grid: { display: false }, ticks: { color: chartColors.text, font: { size: 12 } } }
                 }
             }
         });
     }
+}
+
+// ======= TOP OFENSORES (PÁGINA 7) =======
+function renderTopLojas(data, colNomeConta, colMotivo, colAssunto, colModulo) {
+    const container = document.getElementById('page-7-top-lojas');
+    if (!container) return;
+
+    // 1. Identificar Top 3 Lojas
+    let lojasCount = {};
+    let lojasData = {};
+
+    data.forEach(row => {
+        const loja = (row[colNomeConta] || 'Desconhecido').toString().trim();
+        if (!lojasCount[loja]) {
+            lojasCount[loja] = 0;
+            lojasData[loja] = [];
+        }
+        lojasCount[loja]++;
+        lojasData[loja].push(row);
+    });
+
+    let topLojas = Object.entries(lojasCount)
+        .sort((a, b) => b[1] - a[1])
+        .slice(1, 4) // Pula o 1º colocado (Retaguarda) e pega do 2º ao 4º
+        .map(item => item[0]);
+
+    container.innerHTML = '';
+
+    if (topLojas.length === 0) {
+        container.innerHTML = '<div style="width: 100%; text-align: center; color: var(--text-muted); margin-top: 50px;">Nenhum dado encontrado para gerar o Top Ofensores.</div>';
+        return;
+    }
+
+    topLojas.forEach((loja, index) => {
+        const lojaCasos = lojasData[loja];
+        const totalCasos = lojasCount[loja];
+
+        // Função auxiliar para agrupar e pegar os top 5
+        const getTop5 = (coluna) => {
+            if (!coluna) return [];
+            let counts = {};
+            lojaCasos.forEach(row => {
+                const val = (row[coluna] || '').toString().trim();
+                if (val) counts[val] = (counts[val] || 0) + 1;
+            });
+            return Object.entries(counts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5);
+        };
+
+        const assuntos = getTop5(colAssunto);
+        const modulos = getTop5(colModulo);
+        const motivos = getTop5(colMotivo);
+
+        // Renderizador de mini listas
+        const renderList = (items) => {
+            if (items.length === 0) return '<div style="color: var(--text-muted); font-size: 13px;">Nenhum dado encontrado</div>';
+            return items.map(item => `
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px;">
+                    <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 75%;" title="${item[0]}">${item[0]}</span>
+                    <span style="font-weight: 600; color: var(--accent);">${item[1]}</span>
+                </div>
+            `).join('');
+        };
+
+        const canvasId = `chart-loja-${index}`;
+
+        const cardHtml = `
+            <div class="chart-box-clean" style="flex: 1; padding: 24px; display: flex; flex-direction: column; min-width: 0;">
+                
+                <div style="text-align: center; padding-bottom: 15px; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                    <h3 style="font-size: 20px; margin-bottom: 5px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${loja}">
+                        ${loja}
+                    </h3>
+                    <div style="font-size: 28px; font-weight: 700; color: var(--accent);">
+                        ${totalCasos} <span style="font-size: 14px; font-weight: 400; color: var(--text-muted);">casos</span>
+                    </div>
+                </div>
+
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 20px;">
+                    
+                    <div style="flex: 1; min-height: 180px; display: flex; flex-direction: column;">
+                        <h4 style="font-size: 14px; color: var(--text-muted); margin-bottom: 10px;">Assuntos (Top 5)</h4>
+                        <div style="position: relative; flex: 1; width: 100%;">
+                            <canvas id="${canvasId}"></canvas>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 15px;">
+                        <div style="flex: 1; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px;">
+                            <h4 style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Módulos (Top 5)</h4>
+                            ${renderList(modulos)}
+                        </div>
+                        <div style="flex: 1; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px;">
+                            <h4 style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Motivos (Top 5)</h4>
+                            ${renderList(motivos)}
+                        </div>
+                    </div>
+
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <textarea class="action-plan-input" placeholder="Definir plano de ação para a loja ${loja}..." style="width: 100%; height: 90px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 12px; color: white; font-family: 'Outfit', sans-serif; font-size: 14px; resize: none; outline: none;"></textarea>
+                </div>
+
+            </div>
+        `;
+
+        container.insertAdjacentHTML('beforeend', cardHtml);
+
+        // Renderizar Gráfico de Assuntos
+        if (assuntos.length > 0) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            if (charts[canvasId]) charts[canvasId].destroy();
+
+            charts[canvasId] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: assuntos.map(a => a[0]),
+                    datasets: [{
+                        data: assuntos.map(a => a[1]),
+                        backgroundColor: assuntos.map((_, i) => i === 0 ? '#FF3B3B' : chartColors.red),
+                        borderRadius: 4,
+                        barPercentage: 0.8
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) { return ` ${context.raw} casos`; }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { display: false },
+                        y: {
+                            grid: { display: false },
+                            ticks: { 
+                                color: chartColors.text, 
+                                font: { size: 12, weight: 'bold' },
+                                autoSkip: false,
+                                callback: function(value) {
+                                    let label = this.getLabelForValue(value) || '';
+                                    return label.length > 25 ? label.substring(0, 25) + '...' : label;
+                                }
+                            },
+                            border: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+    });
 }
