@@ -147,6 +147,10 @@ function replaceChartsWithImages(originalSlide, clonedSlide) {
 
     originalCanvases.forEach((canvas, index) => {
         try {
+            if (!(canvas.width > 0 && canvas.height > 0)) {
+                return;
+            }
+
             const img = document.createElement('img');
             img.src = canvas.toDataURL('image/png', 1.0);
             img.style.width = canvas.offsetWidth + 'px';
@@ -209,16 +213,20 @@ async function exportPresentationToPDF() {
             clone.style.height = slide.offsetHeight + 'px';
             clone.style.zIndex = '9999';
             clone.style.background = getComputedStyle(slide).background;
+            clone.style.opacity = '1';
+            clone.style.visibility = 'visible';
 
             document.body.appendChild(clone);
             replaceChartsWithImages(slide, clone);
 
-            await new Promise(resolve => setTimeout(resolve, 300));
+            await new Promise(resolve => setTimeout(resolve, 800));
 
             const canvas = await html2canvas(clone, {
-                backgroundColor: null,
                 scale: 2,
                 useCORS: true,
+                backgroundColor: '#1e0b2e',
+                width: clone.scrollWidth,
+                height: clone.scrollHeight,
                 logging: false
             });
             document.body.removeChild(clone);
