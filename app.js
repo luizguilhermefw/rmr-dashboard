@@ -139,6 +139,116 @@ document.getElementById('btn-start').addEventListener('click', () => {
 
 document.getElementById('next-slide').addEventListener('click', () => goToSlide(currentSlide + 1));
 document.getElementById('prev-slide').addEventListener('click', () => goToSlide(currentSlide - 1));
+document.getElementById('btn-export-pdf').addEventListener('click', exportPresentationToPDF);
+
+async function exportPresentationToPDF() {
+    const exportButton = document.getElementById('btn-export-pdf');
+    const originalLabel = exportButton.innerHTML;
+
+    try {
+        exportButton.disabled = true;
+        exportButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Exportando...';
+
+        if (document.fonts && document.fonts.ready) {
+            await document.fonts.ready;
+        }
+
+        if (typeof html2canvas === 'undefined') {
+            throw new Error('html2canvas não foi carregado.');
+        }
+        if (typeof window.jspdf === 'undefined' || !window.jspdf.jsPDF) {
+            throw new Error('jsPDF não foi carregado.');
+        }
+
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({
+            orientation: 'landscape',
+            unit: 'mm',
+            format: 'a4'
+        });
+
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const allSlides = Array.from(document.querySelectorAll('.slide'));
+
+        for (let i = 0; i < allSlides.length; i++) {
+            const clonedSlide = allSlides[i].cloneNode(true);
+            const cloneWrapper = document.createElement('div');
+
+            cloneWrapper.style.position = 'fixed';
+            cloneWrapper.style.left = '-99999px';
+            cloneWrapper.style.top = '0';
+            cloneWrapper.style.width = `${window.innerWidth}px`;
+            cloneWrapper.style.height = `${window.innerHeight}px`;
+            cloneWrapper.style.overflow = 'hidden';
+            cloneWrapper.style.zIndex = '-1';
+            cloneWrapper.style.background = getComputedStyle(document.body).backgroundColor || '#1E0D2A';
+
+            clonedSlide.style.position = 'relative';
+            clonedSlide.style.opacity = '1';
+            clonedSlide.style.visibility = 'visible';
+            clonedSlide.style.transform = 'none';
+            clonedSlide.style.display = 'flex';
+            clonedSlide.style.width = '100%';
+            clonedSlide.style.height = '100%';
+            clonedSlide.style.overflow = 'hidden';
+
+            cloneWrapper.appendChild(clonedSlide);
+            document.body.appendChild(cloneWrapper);
+
+            const sourceCanvases = allSlides[i].querySelectorAll('canvas');
+            const clonedCanvases = clonedSlide.querySelectorAll('canvas');
+            sourceCanvases.forEach((sourceCanvas, canvasIndex) => {
+                const targetCanvas = clonedCanvases[canvasIndex];
+                if (!targetCanvas) return;
+
+                const sourceDataUrl = sourceCanvas.toDataURL('image/png');
+                const sourceImage = new Image();
+                sourceImage.src = sourceDataUrl;
+                targetCanvas.width = sourceCanvas.width;
+                targetCanvas.height = sourceCanvas.height;
+                const ctx = targetCanvas.getContext('2d');
+                if (ctx) {
+                    ctx.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
+                    ctx.drawImage(sourceImage, 0, 0, targetCanvas.width, targetCanvas.height);
+                }
+            });
+
+            const canvas = await html2canvas(clonedSlide, {
+                backgroundColor: null,
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                scrollX: 0,
+                scrollY: 0,
+                windowWidth: cloneWrapper.clientWidth,
+                windowHeight: cloneWrapper.clientHeight
+            });
+
+            document.body.removeChild(cloneWrapper);
+
+            const imgData = canvas.toDataURL('image/png', 1.0);
+            const imgWidth = canvas.width;
+            const imgHeight = canvas.height;
+            const scaleRatio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+            const renderWidth = imgWidth * scaleRatio;
+            const renderHeight = imgHeight * scaleRatio;
+            const marginX = (pdfWidth - renderWidth) / 2;
+            const marginY = (pdfHeight - renderHeight) / 2;
+
+            if (i > 0) pdf.addPage('a4', 'landscape');
+            pdf.addImage(imgData, 'PNG', marginX, marginY, renderWidth, renderHeight, undefined, 'FAST');
+        }
+
+        pdf.save('apresentacao-rmr.pdf');
+    } catch (error) {
+        console.error('Erro ao exportar PDF:', error);
+        alert('Não foi possível exportar o PDF. Verifique o console para mais detalhes.');
+    } finally {
+        exportButton.disabled = false;
+        exportButton.innerHTML = originalLabel;
+    }
+}
 
 // Keyboard navigation
 document.addEventListener('keydown', (e) => {
