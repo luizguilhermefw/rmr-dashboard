@@ -141,6 +141,26 @@ document.getElementById('next-slide').addEventListener('click', () => goToSlide(
 document.getElementById('prev-slide').addEventListener('click', () => goToSlide(currentSlide - 1));
 document.getElementById('btn-export-pdf').addEventListener('click', exportPresentationToPDF);
 
+function replaceChartsWithImages(originalSlide, clonedSlide) {
+    const originalCanvases = originalSlide.querySelectorAll('canvas');
+    const clonedCanvases = clonedSlide.querySelectorAll('canvas');
+
+    originalCanvases.forEach((canvas, index) => {
+        try {
+            const img = document.createElement('img');
+            img.src = canvas.toDataURL('image/png', 1.0);
+            img.style.width = canvas.offsetWidth + 'px';
+            img.style.height = canvas.offsetHeight + 'px';
+
+            if (clonedCanvases[index]) {
+                clonedCanvases[index].replaceWith(img);
+            }
+        } catch (e) {
+            console.warn('Erro ao converter gráfico', e);
+        }
+    });
+}
+
 async function exportPresentationToPDF() {
     const exportButton = document.getElementById('btn-export-pdf');
     const originalLabel = exportButton.innerHTML;
@@ -167,86 +187,52 @@ async function exportPresentationToPDF() {
             format: 'a4'
         });
 
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        const allSlides = Array.from(document.querySelectorAll('.slide:not(#slide-1)'));
-
+        const allSlides = document.querySelectorAll('.slide:not(#slide-1)');
         if (allSlides.length === 0) {
             throw new Error('Não há slides para exportação.');
         }
 
+        await new Promise(resolve => setTimeout(resolve, 500));
+        if (document.fonts && document.fonts.ready) {
+            await document.fonts.ready;
+        }
+
         for (let i = 0; i < allSlides.length; i++) {
-            const clonedSlide = allSlides[i].cloneNode(true);
-            const cloneWrapper = document.createElement('div');
+            const slide = allSlides[i];
+            const clone = slide.cloneNode(true);
 
-            cloneWrapper.style.position = 'fixed';
-            cloneWrapper.style.left = '-99999px';
-            cloneWrapper.style.top = '0';
-            cloneWrapper.style.width = `${window.innerWidth}px`;
-            cloneWrapper.style.height = `${window.innerHeight}px`;
-            cloneWrapper.style.overflow = 'hidden';
-            cloneWrapper.style.zIndex = '-1';
-            cloneWrapper.style.background = getComputedStyle(document.body).backgroundColor || '#1E0D2A';
+            clone.style.display = 'block';
+            clone.style.position = 'fixed';
+            clone.style.top = '0';
+            clone.style.left = '0';
+            clone.style.width = slide.offsetWidth + 'px';
+            clone.style.height = slide.offsetHeight + 'px';
+            clone.style.zIndex = '9999';
+            clone.style.background = getComputedStyle(slide).background;
 
-            clonedSlide.style.position = 'relative';
-            clonedSlide.style.opacity = '1';
-            clonedSlide.style.visibility = 'visible';
-            clonedSlide.style.transform = 'none';
-            clonedSlide.style.display = 'flex';
-            clonedSlide.style.width = '100%';
-            clonedSlide.style.height = '100%';
-            clonedSlide.style.overflow = 'hidden';
+            document.body.appendChild(clone);
+            replaceChartsWithImages(slide, clone);
 
-            cloneWrapper.appendChild(clonedSlide);
-            document.body.appendChild(cloneWrapper);
+            await new Promise(resolve => setTimeout(resolve, 300));
 
-            const sourceCanvases = allSlides[i].querySelectorAll('canvas');
-            const clonedCanvases = clonedSlide.querySelectorAll('canvas');
-            sourceCanvases.forEach((sourceCanvas, canvasIndex) => {
-                const targetCanvas = clonedCanvases[canvasIndex];
-                if (!targetCanvas) return;
-
-                const sourceDataUrl = sourceCanvas.toDataURL('image/png');
-                const sourceImage = new Image();
-                sourceImage.src = sourceDataUrl;
-                targetCanvas.width = sourceCanvas.width;
-                targetCanvas.height = sourceCanvas.height;
-                const ctx = targetCanvas.getContext('2d');
-                if (ctx) {
-                    ctx.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
-                    ctx.drawImage(sourceImage, 0, 0, targetCanvas.width, targetCanvas.height);
-                }
-            });
-
-            const canvas = await html2canvas(clonedSlide, {
+            const canvas = await html2canvas(clone, {
                 backgroundColor: null,
                 scale: 2,
                 useCORS: true,
-                logging: false,
-                scrollX: 0,
-                scrollY: 0,
-                windowWidth: cloneWrapper.clientWidth,
-                windowHeight: cloneWrapper.clientHeight
+                logging: false
             });
-
-            document.body.removeChild(cloneWrapper);
+            document.body.removeChild(clone);
 
             const imgData = canvas.toDataURL('image/png', 1.0);
-            const imgWidth = canvas.width;
-            const imgHeight = canvas.height;
-            const scaleRatio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
-            const renderWidth = imgWidth * scaleRatio;
-            const renderHeight = imgHeight * scaleRatio;
-            const marginX = (pdfWidth - renderWidth) / 2;
-            const marginY = (pdfHeight - renderHeight) / 2;
 
-            if (i > 0) pdf.addPage('a4', 'landscape');
-            pdf.setFillColor(30, 13, 42);
-            pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
-            pdf.addImage(imgData, 'PNG', marginX, marginY, renderWidth, renderHeight, undefined, 'FAST');
+            if (i > 0) {
+                pdf.addPage();
+            }
+
+            pdf.addImage(imgData, 'PNG', 0, 0, 297, 210);
         }
 
-        pdf.save('apresentacao-rmr.pdf');
+        pdf.save('relatorio-rmr.pdf');
     } catch (error) {
         console.error('Erro ao exportar PDF:', error);
         alert('Não foi possível exportar o PDF. Verifique o console para mais detalhes.');
