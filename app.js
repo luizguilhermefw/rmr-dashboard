@@ -2,7 +2,7 @@
 let rawDataStore = [];
 let charts = {};
 let currentSlide = 0;
-const slides = document.querySelectorAll('.slide');
+const slides = document.querySelectorAll('.presentation-container .slide');
 
 // Cores padronizadas para o tema dark premium
 const chartColors = {
@@ -191,7 +191,7 @@ async function exportPresentationToPDF() {
             format: 'a4'
         });
 
-        const allSlides = document.querySelectorAll('.slide:not(#slide-1)');
+        const allSlides = Array.from(document.querySelectorAll('.presentation-container .slide')).filter(slide => slide.id !== 'slide-1');
         if (allSlides.length === 0) {
             throw new Error('Não há slides para exportação.');
         }
@@ -287,8 +287,8 @@ function updateSlideUI() {
             slide.classList.remove('active');
         }
     });
-    // Set text out of 6
-    document.getElementById('slide-counter').textContent = `${currentSlide + 1} / 7`;
+    // Atualiza contador com todos os slides navegáveis
+    document.getElementById('slide-counter').textContent = `${currentSlide + 1} / ${slides.length}`;
     updateExportButtonVisibility(slides[currentSlide]?.id);
     sessionStorage.setItem('rmr_currentSlide', currentSlide);
 }
@@ -662,6 +662,7 @@ function processAndRenderDashboard() {
     renderVolumetria(dataFiltrada, colNomeConta, colTipo, colIdade, colCnpj, colRede);
     renderAnalisePagina6(dataFiltrada, colModulo, colMotivo, colAssunto, colTipo);
     renderAnalisePagina6(dataFiltrada, colModulo, colMotivo, colAssuntoEncerramento || colAssunto, colTipo);
+    renderTopOfensores(dataFiltrada, colRede, colNomeConta, colCnpj, colModulo, colMotivo, colAssuntoEncerramento || colAssunto);
 
     // Se no futuro você quiser q atualizar o Dropdown recarregue a tela (só adicionar listener no select)
     const selectEl = document.getElementById('client-select');
@@ -1058,6 +1059,153 @@ cnpjArray = cnpjArray.slice(0, 20);
             }
         });
     }
+}
+
+function renderTopOfensores(data, colRede, colNomeConta, colCnpj, colModulo, colMotivo, colAssunto) {
+    const normalizarValor = (value) => (value || '').toString().trim();
+    const isRedeIgnorada = (value) => normalizarValor(value).toLowerCase() === 'rede000001';
+    const escapeHTML = (value) => normalizarValor(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    const truncate = (value, maxLength = 26) => {
+        const text = normalizarValor(value);
+        return text.length > maxLength ? `${text.slice(0, maxLength - 3)}...` : text;
+    };
+
+    const dadosFiltrados = data.filter(item => {
+        if (!colRede) return true;
+        return !isRedeIgnorada(item[colRede]);
+    });
+
+    const ofensoresMap = {};
+
+    dadosFiltrados.forEach(item => {
+        const rede = colRede ? normalizarValor(item[colRede]) : '';
+        const nomeConta = colNomeConta ? normalizarValor(item[colNomeConta]) : '';
+        const cnpj = colCnpj ? normalizarValor(item[colCnpj]) : '';
+        const chaveOfensor = rede || nomeConta || cnpj || 'Não informado';
+
+        if (!ofensoresMap[chaveOfensor]) {
+            ofensoresMap[chaveOfensor] = {
+                nome: chaveOfensor,
+                casos: 0,
+                assuntos: {},
+                modulos: {},
+                motivos: {}
+            };
+        }
+
+        ofensoresMap[chaveOfensor].casos++;
+
+        if (colAssunto) {
+            const assunto = normalizarValor(item[colAssunto]) || 'Não informado';
+            ofensoresMap[chaveOfensor].assuntos[assunto] = (ofensoresMap[chaveOfensor].assuntos[assunto] || 0) + 1;
+        }
+
+        if (colModulo) {
+            const modulo = normalizarValor(item[colModulo]) || 'Não informado';
+            ofensoresMap[chaveOfensor].modulos[modulo] = (ofensoresMap[chaveOfensor].modulos[modulo] || 0) + 1;
+        }
+
+        if (colMotivo) {
+            const motivo = normalizarValor(item[colMotivo]) || 'Não informado';
+            ofensoresMap[chaveOfensor].motivos[motivo] = (ofensoresMap[chaveOfensor].motivos[motivo] || 0) + 1;
+        }
+    });
+
+    const topOfensores = Object.values(ofensoresMap)
+        .sort((a, b) => b.casos - a.casos)
+        .slice(0, 3);
+
+    const cardsContainer = document.getElementById('top-ofensores-cards');
+    if (!cardsContainer) return;
+
+    if (topOfensores.length === 0) {
+        cardsContainer.innerHTML = `
+            <div class="chart-box-clean" style="grid-column: 1 / -1; min-height: 360px; display: flex; align-items: center; justify-content: center; color: var(--text-muted);">
+                Nenhum ofensor encontrado no período
+            </div>
+        `;
+        return;
+    }
+
+    const topEntries = (map, limit = 5) => Object.entries(map)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, limit);
+
+    const renderAssuntoBars = (entries, maxValue) => {
+        if (entries.length === 0) {
+            return `<div style="color: var(--text-muted); font-size: 13px; padding-top: 14px;">Nenhum assunto identificado</div>`;
+        }
+
+        return entries.map(([label, value], index) => {
+            const width = maxValue > 0 ? Math.max((value / maxValue) * 100, 16) : 16;
+            const color = index === 0 ? '#ff3642' : '#f63d2a';
+            return `
+                <div style="display: grid; grid-template-columns: minmax(0, 1fr) 1.18fr; gap: 10px; align-items: center; margin-bottom: 10px;">
+                    <div title="${escapeHTML(label)}" style="color: #A9A2BA; font-size: 12px; font-weight: 700; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHTML(truncate(label, 24))}</div>
+                    <div style="height: 19px; background: transparent; border-radius: 3px; overflow: hidden;">
+                        <div style="height: 100%; width: ${width}%; background: ${color}; border-radius: 3px;"></div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    };
+
+    const renderMiniList = (title, entries) => {
+        const rows = entries.length > 0
+            ? entries.map(([label, value]) => `
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                    <span title="${escapeHTML(label)}" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #fff; font-size: 14px;">${escapeHTML(truncate(label, 15))}</span>
+                    <strong style="color: #ff3b30; font-size: 14px;">${value}</strong>
+                </div>
+            `).join('')
+            : `<div style="color: var(--text-muted); font-size: 13px; padding-top: 10px;">Sem dados</div>`;
+
+        return `
+            <div style="background: rgba(12, 5, 22, 0.42); border-radius: 9px; padding: 18px 16px; min-height: 168px; min-width: 0;">
+                <h4 style="color: #A9A2BA; font-size: 14px; margin-bottom: 10px; font-weight: 700;">${title}</h4>
+                ${rows}
+            </div>
+        `;
+    };
+
+    cardsContainer.innerHTML = topOfensores.map(ofensor => {
+        const assuntos = topEntries(ofensor.assuntos, 5);
+        const modulos = topEntries(ofensor.modulos, 5);
+        const motivos = topEntries(ofensor.motivos, 5);
+        const maiorAssunto = assuntos[0]?.[1] || 0;
+
+        return `
+            <article class="chart-box-clean" style="min-height: 756px; padding: 28px 28px 26px; border-radius: 12px; display: flex; flex-direction: column; background: rgba(255,255,255,0.045);">
+                <h3 title="${escapeHTML(ofensor.nome)}" style="font-size: 22px; line-height: 1.1; color: #fff; text-align: center; margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: uppercase;">${escapeHTML(truncate(ofensor.nome, 32))}</h3>
+
+                <div style="display: flex; justify-content: center; align-items: baseline; gap: 8px; margin-bottom: 22px;">
+                    <strong style="font-size: 31px; color: #ff3b30; line-height: 1;">${ofensor.casos}</strong>
+                    <span style="color: #A9A2BA; font-size: 14px;">casos</span>
+                </div>
+
+                <div style="height: 1px; background: rgba(255,255,255,0.12); margin-bottom: 24px;"></div>
+
+                <section style="min-height: 225px;">
+                    <h4 style="color: #A9A2BA; font-size: 14px; margin-bottom: 26px; font-weight: 700;">Assuntos (Top 5)</h4>
+                    ${renderAssuntoBars(assuntos, maiorAssunto)}
+                </section>
+
+                <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 14px;">
+                    ${renderMiniList('Módulos (Top 5)', modulos)}
+                    ${renderMiniList('Motivos (Top 5)', motivos)}
+                </div>
+
+                <div style="margin-top: auto; min-height: 102px; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 16px 14px; color: #A9A2BA; font-size: 15px; line-height: 1.35; background: rgba(255,255,255,0.04);">
+                    Definir plano de ação para a loja ${escapeHTML(truncate(ofensor.nome, 46))}...
+                </div>
+            </article>
+        `;
+    }).join('');
 }
 
 // ======= VOLUMETRIA GERAL (PAGE 4) =======
