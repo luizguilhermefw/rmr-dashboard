@@ -751,6 +751,31 @@ function formatMonth(yyyy_mm) {
     return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
+function calcularLojasPorRede(dados) {
+    const mapa = {};
+
+    dados.forEach(item => {
+        const rede = item.rede;
+        const cnpj = item.cnpj;
+
+        if (!rede || !cnpj) return;
+
+        if (!mapa[rede]) {
+            mapa[rede] = new Set();
+        }
+
+        mapa[rede].add(cnpj);
+    });
+
+    const resultado = {};
+
+    Object.keys(mapa).forEach(rede => {
+        resultado[rede] = mapa[rede].size;
+    });
+
+    return resultado;
+}
+
 function renderComparative(monthlyData, accountDetailsMap = {}) {
     globalMonthlyData = monthlyData;
     globalAccountDetailsMap = accountDetailsMap;
@@ -919,6 +944,7 @@ cnpjArray = cnpjArray.slice(0, 20);
 
     // ================= NOVA LÓGICA (REDES) =================
     let redeStats = {};
+    let dadosLojasRede = [];
 
     allKeys.forEach(cnpj => {
         const baseCount = dataBase.contasMap[cnpj] || 0;
@@ -927,6 +953,8 @@ cnpjArray = cnpjArray.slice(0, 20);
         // Agrupa por Rede. Se a conta não tiver Rede mapeada, usa o Nome/Apelido como Rede.
         const redeName = (detalhes.rede && detalhes.rede !== '-') ? detalhes.rede : detalhes.apelido;
 
+        dadosLojasRede.push({ rede: redeName, cnpj: cnpj });
+
         if (!redeStats[redeName]) {
             redeStats[redeName] = { base: 0, comp: 0 };
         }
@@ -934,9 +962,12 @@ cnpjArray = cnpjArray.slice(0, 20);
         redeStats[redeName].comp += compCount;
     });
 
+    const lojasPorRede = calcularLojasPorRede(dadosLojasRede);
+
     let redeArray = Object.keys(redeStats).map(k => {
         return {
             rede: k,
+            lojas: lojasPorRede[k] || 0,
             base: redeStats[k].base,
             comp: redeStats[k].comp,
             diff: redeStats[k].base - redeStats[k].comp
@@ -955,6 +986,7 @@ cnpjArray = cnpjArray.slice(0, 20);
         redeHtml += `
             <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
                 <td style="padding: 12px 8px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;" title="${item.rede}">${item.rede}</td>
+                <td style="padding: 12px 8px; text-align: center;">${item.lojas}</td>
                 <td style="padding: 12px 8px; text-align: center;">${item.comp}</td>
                 <td style="padding: 12px 8px; text-align: center;">${item.base}</td>
                 <td style="padding: 12px 8px; text-align: center; color: ${diffColor}; font-weight: bold;">${diffText}</td>
@@ -963,7 +995,7 @@ cnpjArray = cnpjArray.slice(0, 20);
     });
 
     if (redeArray.length === 0) {
-        redeHtml = `<tr><td colspan="4" style="padding: 20px; text-align: center; color: var(--text-muted);">Nenhuma Rede com chamados no período</td></tr>`;
+        redeHtml = `<tr><td colspan="5" style="padding: 20px; text-align: center; color: var(--text-muted);">Nenhuma Rede com chamados no período</td></tr>`;
     }
     
     let redeTableBody = document.getElementById('rede-table-body');
