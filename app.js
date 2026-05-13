@@ -2,7 +2,7 @@
 let rawDataStore = [];
 let charts = {};
 let currentSlide = 0;
-const slides = document.querySelectorAll('.slide');
+const slides = document.querySelectorAll('.presentation-container .slide');
 
 // Cores padronizadas para o tema dark premium
 const chartColors = {
@@ -191,7 +191,7 @@ async function exportPresentationToPDF() {
             format: 'a4'
         });
 
-        const allSlides = document.querySelectorAll('.slide:not(#slide-1)');
+        const allSlides = Array.from(document.querySelectorAll('.presentation-container .slide')).filter(slide => slide.id !== 'slide-1');
         if (allSlides.length === 0) {
             throw new Error('Não há slides para exportação.');
         }
@@ -287,8 +287,8 @@ function updateSlideUI() {
             slide.classList.remove('active');
         }
     });
-    // Set text out of 6
-    document.getElementById('slide-counter').textContent = `${currentSlide + 1} / 7`;
+    // Atualiza contador com todos os slides navegáveis
+    document.getElementById('slide-counter').textContent = `${currentSlide + 1} / ${slides.length}`;
     updateExportButtonVisibility(slides[currentSlide]?.id);
     sessionStorage.setItem('rmr_currentSlide', currentSlide);
 }
@@ -662,6 +662,7 @@ function processAndRenderDashboard() {
     renderVolumetria(dataFiltrada, colNomeConta, colTipo, colIdade, colCnpj, colRede);
     renderAnalisePagina6(dataFiltrada, colModulo, colMotivo, colAssunto, colTipo);
     renderAnalisePagina6(dataFiltrada, colModulo, colMotivo, colAssuntoEncerramento || colAssunto, colTipo);
+    renderTopOfensores(dataFiltrada, colRede, colNomeConta, colCnpj, colTipo, colAssuntoEncerramento || colAssunto);
 
     // Se no futuro você quiser q atualizar o Dropdown recarregue a tela (só adicionar listener no select)
     const selectEl = document.getElementById('client-select');
@@ -1058,6 +1059,111 @@ cnpjArray = cnpjArray.slice(0, 20);
             }
         });
     }
+}
+
+function renderTopOfensores(data, colRede, colNomeConta, colCnpj, colTipo, colAssunto) {
+    const normalizarRede = (value) => (value || '').toString().trim();
+    const isRedeIgnorada = (value) => normalizarRede(value).toLowerCase() === 'rede000001';
+
+    const dadosFiltrados = data.filter(item => {
+        if (!colRede) return true;
+        return !isRedeIgnorada(item[colRede]);
+    });
+
+    const redesMap = {};
+
+    dadosFiltrados.forEach(item => {
+        const rede = colRede ? normalizarRede(item[colRede]) : '';
+        const nomeConta = colNomeConta ? normalizarRede(item[colNomeConta]) : '';
+        const cnpj = colCnpj ? normalizarRede(item[colCnpj]) : '';
+        const chaveRede = rede || nomeConta || cnpj || 'Não informado';
+
+        if (!redesMap[chaveRede]) {
+            redesMap[chaveRede] = {
+                rede: chaveRede,
+                casos: 0,
+                tipos: {},
+                assuntos: {}
+            };
+        }
+
+        redesMap[chaveRede].casos++;
+
+        if (colTipo) {
+            const tipo = normalizarRede(item[colTipo]) || 'Não informado';
+            redesMap[chaveRede].tipos[tipo] = (redesMap[chaveRede].tipos[tipo] || 0) + 1;
+        }
+
+        if (colAssunto) {
+            const assunto = normalizarRede(item[colAssunto]) || 'Não informado';
+            redesMap[chaveRede].assuntos[assunto] = (redesMap[chaveRede].assuntos[assunto] || 0) + 1;
+        }
+    });
+
+    const topOfensores = Object.values(redesMap)
+        .sort((a, b) => b.casos - a.casos)
+        .slice(0, 3);
+
+    const tableBody = document.getElementById('top-ofensores-table-body');
+    if (tableBody) {
+        if (topOfensores.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="3" style="padding: 20px; text-align: center; color: var(--text-muted);">Nenhum ofensor encontrado no período</td></tr>`;
+        } else {
+            tableBody.innerHTML = topOfensores.map(item => {
+                const assuntoPrincipal = Object.entries(item.assuntos).sort((a, b) => b[1] - a[1])[0]?.[0] || 'assuntos recorrentes';
+                return `
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                        <td style="padding: 12px 8px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;" title="${item.rede}">${item.rede}</td>
+                        <td style="padding: 12px 8px; text-align: center; font-weight: 700; color: #F0462D;">${item.casos}</td>
+                        <td style="padding: 12px 8px; color: var(--text-muted);">Priorizar revisão de <b style="color: #fff;">${assuntoPrincipal}</b> e acompanhamento semanal.</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+    }
+
+    const canvas = document.getElementById('chartTopOfensores');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (charts.topOfensores) charts.topOfensores.destroy();
+
+    charts.topOfensores = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: topOfensores.map(item => item.rede),
+            datasets: [{
+                label: 'Casos',
+                data: topOfensores.map(item => item.casos),
+                backgroundColor: '#F0462D',
+                borderRadius: 4
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#411E5A',
+                    titleFont: { family: "'Outfit', sans-serif", size: 14 },
+                    bodyFont: { family: "'Outfit', sans-serif", size: 14 }
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    grid: { color: chartColors.grid },
+                    ticks: { color: chartColors.text, precision: 0 }
+                },
+                y: {
+                    grid: { display: false },
+                    ticks: { color: chartColors.text, font: { size: 12 } }
+                }
+            }
+        }
+    });
 }
 
 // ======= VOLUMETRIA GERAL (PAGE 4) =======

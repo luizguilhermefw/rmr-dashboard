@@ -413,7 +413,6 @@
                 </div>
             </div>
         </section>
-    </div>
 
     <!-- Slide 6: Análise de Assuntos -->
     <section class="slide" id="slide-6">
@@ -460,17 +459,43 @@
         </div>
     </section>
 
-    <!-- Slide 7: Encerramento -->
+    <!-- Slide 7: Raio-X Top 3 Ofensores -->
     <section class="slide" id="slide-7">
-        <div class="slide-inner powerbi-layout"
-            style="align-items: center; justify-content: center; text-align: center;">
-            <h1
-                style="font-size: 80px; font-weight: 700; background: linear-gradient(to right, #fff, #a5b4fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 20px;">
-                Obrigado!
-            </h1>
-            <p style="font-size: 24px; color: var(--text-muted); font-weight: 300;">
-                Agradecemos pela parceria construída.
-            </p>
+        <div class="slide-inner powerbi-layout">
+            <header class="slide-header clean-header" style="margin-bottom: 20px;">
+                <h2 class="title-clean">Raio-X: Top 3 Ofensores</h2>
+                <p style="color: var(--text-muted); font-size: 16px;">Redes com maior volume de chamados e plano de ação</p>
+            </header>
+
+            <div class="comparative-container" style="display:flex; width: 100%; max-width: 1300px; gap: 30px; justify-content: center; align-items: stretch;">
+                <div class="chart-box-clean" style="flex: 1; padding: 24px; display: flex; flex-direction: column; min-height: 480px;">
+                    <h3 style="font-size: 18px; margin-bottom: 20px; flex-shrink: 0; color: var(--text-light); text-align: left;">
+                        Top 3 Redes por Volume de Casos
+                    </h3>
+                    <div style="position: relative; flex: 1; width: 100%; min-height: 360px;">
+                        <canvas id="chartTopOfensores"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-box-clean" style="flex: 1; padding: 24px; display: flex; flex-direction: column; min-height: 480px;">
+                    <h3 style="font-size: 18px; margin-bottom: 20px; flex-shrink: 0; color: var(--text-light); text-align: left;">
+                        Plano de Ação
+                    </h3>
+                    <div class="custom-scroll" style="overflow-y: auto; flex: 1; padding-right: 8px;">
+                        <table style="width: 100%; border-collapse: collapse; color: white;">
+                            <thead style="position: sticky; top: 0; background: rgba(30,13,42, 0.9); border-bottom: 1px solid rgba(255,255,255,0.1);">
+                                <tr style="text-align: left; color: var(--text-muted); font-size: 12px;">
+                                    <th style="padding: 12px 8px;">Rede</th>
+                                    <th style="padding: 12px 8px; text-align: center;">Casos</th>
+                                    <th style="padding: 12px 8px;">Ação Recomendada</th>
+                                </tr>
+                            </thead>
+                            <tbody id="top-ofensores-table-body" style="font-size: 14px;">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
     </section>
 
