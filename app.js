@@ -1062,7 +1062,7 @@ cnpjArray = cnpjArray.slice(0, 20);
 }
 
 function renderTopOfensores(data, colRede, colNomeConta, colCnpj, colModulo, colMotivo, colAssunto) {
-    const normalizarValor = (value) => (value || '').toString().trim();
+    const normalizarValor = (value) => (value == null ? '' : value.toString()).trim();
     const isRedeIgnorada = (value) => normalizarValor(value).toLowerCase() === 'rede000001';
     const escapeHTML = (value) => normalizarValor(value)
         .replace(/&/g, '&amp;')
