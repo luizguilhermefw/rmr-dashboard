@@ -1086,11 +1086,16 @@ function renderTopOfensores(data, colRede, colNomeConta, colCnpj, colModulo, col
         const rede = colRede ? normalizarValor(item[colRede]) : '';
         const nomeConta = colNomeConta ? normalizarValor(item[colNomeConta]) : '';
         const cnpj = colCnpj ? normalizarValor(item[colCnpj]) : '';
-        const chaveOfensor = rede || nomeConta || cnpj || 'Não informado';
+        const identificadorPrincipal = cnpj || nomeConta || 'Não informado';
+        const nomeBaseExibicao = nomeConta || cnpj || 'Não informado';
+        const nomeExibicao = rede && rede !== nomeBaseExibicao
+            ? `${rede} - ${nomeBaseExibicao}`
+            : nomeBaseExibicao;
+        const chaveOfensor = identificadorPrincipal;
 
         if (!ofensoresMap[chaveOfensor]) {
             ofensoresMap[chaveOfensor] = {
-                nome: chaveOfensor,
+                nome: nomeExibicao,
                 casos: 0,
                 assuntos: {},
                 modulos: {},
